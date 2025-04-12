@@ -1,0 +1,301 @@
+---
+title: "Tarea 4"
+author: "Xymena Ricardez"
+date: "2025-04-10"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+1.  **Karate**
+
+Considera la red del club de Karate de Zachary. [Acá](https://en.wikipedia.org/wiki/Zachary%27s_karate_club) puedes leer sobre eso. En igraph la gráfica está precargada
+
+```{r message=FALSE, warning=FALSE}
+library(igraph)
+karate<-make_graph("Zachary")
+```
+
+-   ¿Cuántos nodos y conexiones tiene?
+```{r}
+nodos<- vcount(karate)
+head(nodos)
+```
+Hay 34 nodos.
+
+-   ¿Quiénes son los nodos y cuál es la regla de conexión?
+La red está basada en las interacciones sociales del club de karate de Zachary, por lo que cada nodo representa a un integrante del club. La regla de conexión esta hecha de acuerdo a la interacción o relación que existía entre las personas. 
+
+-   ¿Qué tan densa es la red?
+```{r}
+edge_density(karate)
+```
+
+-   ¿Cómo obtienes la matriz de adyacencia?
+```{r}
+matriz<- as_adjacency_matrix(karate, sparse = FALSE)
+head(matriz)
+```
+-   ¿Es una red dirigida, pesada?
+No es una red dirigida ni pesada ya que no representa como estan asociadas las interacciones. 
+
+-   Calcula y gráfica la distribución de conectividades
+```{r}
+degree<- degree(karate)
+dd<- degree_distribution(karate)
+tabla<- table (degree)
+sum(tabla)
+frecrelative<- tabla/sum(tabla)
+barplot(frecrelative, xlab = "Grado", ylab = "Frecuencia relativa", 
+        main ="Distribución de conectividades",
+        col = "pink", 
+        ylim = c(0, max(frecrelative+0.1)))
+```
+
+-   Calcula el diámetro, la matriz de distancias y la distancia promedio
+```{r}
+diameter(karate)
+
+head(distances(karate))
+matrizdist<- as.matrix(distances(karate))
+head(matrizdist)
+
+mean_distance(karate)
+```
+
+-   Encuentra la trayectoria de los nodos más alejados.
+```{r}
+max<- max(distances(karate))
+alejados<- which(matrizdist == max, arr.ind = TRUE)
+alejados
+```
+
+-   Existen nodos con coefeiciente de clusterización 1. ¿Qué significa?
+Significa que todos los nodos que se encuentran cercanos a este, estan relacionados/conectados entre sí y forman un ambiente cerrado.
+
+-   Mide , con al menos tres medidas de centralidad, los nodos más importantes.
+```{r}
+centr_degree(karate) #centralidad de grado
+centr_betw(karate) #centralidad de intermediación
+centr_clo(karate) #centralida de cercanía
+```
+
+
+**Explica e interpreta tus resultados**.
+
+2.  **Amigues**
+
+A partir de la red de amigues que vimos en clase, en su versión no ponderada, contesta lo siguiente:
+
+-   Escribe una función que calcule el número de amigos que tiene cualquier persona arbitraria y lo compare con el número de los amigos de estos.
+```{r}
+g1<-read.csv("C:/Users/xymen/OneDrive/Documentos/GeneticaF/adjacency_matrix.csv")
+View(g1)
+rownames(g1)<-g1[,1]
+View(g1)
+g1<-g1[,-1]
+g1<-as.matrix(g1)
+diag(g1)<-0
+red<-graph_from_adjacency_matrix(g1)
+plot(red,vertex.size=15,vertex.size=5,
+     edge.arrow.size=0.25,layout=layout_nicely,vertex.size.label=0.25)
+
+amigos <- function(red) {
+  nodo <- sample(V(red)$name, 1)  
+  aminodo <- neighbors(red, nodo, mode = "out")  
+  tamañoamigos <- length(aminodo)
+  amiamigos <- c()
+  for (i in seq_along(aminodo)) {
+    principal <- aminodo[i]  
+    amideamigos <- neighbors(red, principal, mode = "out")
+    tamañoamideamigo <- length(amideamigos)
+    amiamigos <- c(amiamigos, tamañoamideamigo)
+  }
+  
+cat("Nombre elegido:", nodo, "\n",
+      "Su número de amigos es:", tamañoamigos, "\n",
+      "El número de amigos de sus amigos es: ", amiamigos, "\n")
+}
+amigos(red)
+```
+
+
+-   Escribe una función que te de la trayectoria más larga entre dos nodos arbitrarios de la red.
+```{r}
+trayectoria<- function(red){
+matrizdist <- distances(red)
+max<- max(distances(red))
+alejados<- which(matrizdist == max, arr.ind = TRUE)
+nodoalejado1 <- rownames(matrizdist)[alejados[1, 1]]
+nodoalejado2 <- colnames(matrizdist)[alejados[1, 2]]
+cat("nodos mas alejados: ", nodoalejado1,  ",",  nodoalejado2)
+}
+
+trayectoria(red)
+```
+
+
+-   Encuentra las dos personas más populares.
+```{r}
+degree<- degree(red)
+ordenar<- order(degree, decreasing = TRUE)[1:2]
+ordenar<-(V(red)$name[ordenar])
+cat("las personas más populares son :", ordenar[1], "y", ordenar[2])
+```
+
+
+3.  **Red PPI**
+
+A partir de la red de interacción proteína-proteína (PPI) de la levadura que se encuentra en la bilbioteca `igraphdata` Elabora un script que conteste lo siguiente:
+
+-   Encuentre qué tipo de distribución de conectividades tiene. Haz un ajuste en log-log para ver que tipo de distribución podría ser.
+```{r}
+library(igraphdata)
+data("yeast")
+
+degree<- degree(yeast)
+degredistri<- degree_distribution(yeast)
+tabla<- table (degree)
+sum(tabla)
+frecrelative<- tabla/sum(tabla)
+barplot(frecrelative, xlab = "Grado", ylab = "Frecuencia relativa", 
+        main ="Distribución de conectividades",
+        col = "purple", 
+        ylim = c(0, max(frecrelative+0.1)))
+```
+Es una distribución de cola larga.
+
+-   Encuentra las diez proteínas más conectadas
+```{r}
+degree<- degree(yeast)
+conectadas<- sort(degree, decreasing = TRUE)[1:10]
+conectadas
+```
+
+
+-   Calcula el diámetro y promedio de las distancias
+```{r}
+diameter(yeast)
+mean_distance(yeast)
+```
+
+-   Crea una función que, a partir de eliminar al azar un nodo de la red genere el promedio d elas distancias después de eliminar $n=1,2,3,\ldots, 100$ nodos al azar
+
+-   Crea una función que elimine las proteínas más conectadas y calcule el promedio de las distancias cad vez que se remueve un nodo.
+
+-   Calcula el proemdio del coeficiente de clusterización. ¿Hay proteínas que tengan un coeficiente de clusterización de 1? Eso qué significa.
+```{r}
+transitivity(yeast)
+```
+que la mayoria de nodos conectados a uno, tambien estan conectados entre sí.
+
+Discute tus resultados.
+
+4.  **Redes biológicas**
+
+Ve a al [Network Repository](https://networkrepository.com/bn-mouse-visual-cortex-1.php) y descarga la red en formato lista de adyacencia. Explica que representam los nodos y las conectividades.
+
+Escribe código que resuelva lo siguiente:
+
+-   Cargue y genere una gráfica en `igraph`.
+```{r}
+```
+
+
+-   Genera la gráfica con todos los layouts disponibles.
+
+-   Grafica la red con al menos tres medidas de centralidad.
+```{r}
+
+```
+
+
+-   ¿Qué tan densa es la red?
+```{r}
+```
+Tiene una densidad baja
+
+-   Clusteriza la red con al menos tres métodos de clusterización. Gráfica la red con esos métodos.
+
+
+Explica tus resultados.
+
+5.  **Red de coexpresión simulada**
+
+Simula una matriz de expresión con 20 genes en 6 condiciones diferentes.
+```{r}
+genes <- matrix(rnorm(20 * 6), nrow = 20, ncol = 6)
+rownames(genes) <- paste0("Gen", 1:20)
+colnames(genes) <- paste0("Cond", 1:6)
+genes
+```
+
+
+-   Calcula la correlación entre todos los pares de genes.
+```{r}
+cor(genes)
+```
+
+
+-   Construye una red de coexpresión utilizando un umbral de correlación \> 0.8.
+```{r}
+cor<- cor(genes)
+correlacionyumbral<- cor[abs(cor)>= 0.8]
+coexpresion<- graph.adjacency(correlacionyumbral,  mode = "directed")
+plot(coexpresion)
+```
+
+
+-   Calcula la distribución de grados.
+```{r eval=FALSE, include=FALSE}
+genes1<- graph_from_adjacency_matrix(genes, mode = "directed")
+degree<- degree(genes1)
+dsitribucion<- degree_distribution(genes1)
+barplot(distribucion, xlab = "Grado", ylab = "Frecuencia relativa", 
+        main ="Distribución de grados",
+        col = "navy")
+```
+
+-   Identifica si hay módulos o agrupamientos de genes altamente correlacionados.
+
+-   Visualiza la red y discute qué tipo de topología tiene.
+
+6.  **Comparación de redes**
+
+Construye dos redes:
+
+-   Una red aleatoria tipo Erdos-Rényi.
+-   Una red tipo "scale-free" usando el modelo Barabási–Albert.
+```{r}
+nodos<- 70
+conexion<- 3* nodos
+erdos<- sample_gnm(nodos , conexion)
+plot(erdos)
+
+nodos<- 70
+conexion<- 3
+ba<-sample_pa(nodos, conexion, directed = FALSE)
+plot(ba)
+```
+
+
+Para ambas redes:
+
+-   Compara su grado promedio,
+distribución de grados, coeficiente de clusterización y diámetro.
+```{r}
+mean(degree(ba))
+mean(degree(erdos))
+
+degree_distribution(ba)
+degree_distribution(erdos)
+
+transitivity(ba)
+transitivity(erdos)
+
+diameter(ba)
+diameter(erdos)
+```
+-   Interpreta las diferencias en el contexto de redes biológicas.
